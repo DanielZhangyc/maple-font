@@ -14,8 +14,8 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parents[2]
 ADVANCE_WIDTH = 600
-ICON_BOX = 560
-ICON_BOTTOM = 80
+ICON_BOX = 700
+ICON_BOTTOM = 20
 MAX_CURVE_ERROR = 1.0
 
 
