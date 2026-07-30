@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
 
+from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.cu2quPen import Cu2QuPen
 from fontTools.pens.transformPen import TransformPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
@@ -14,8 +15,7 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parents[2]
 ADVANCE_WIDTH = 600
-ICON_BOX = 700
-ICON_BOTTOM = 20
+ICON_CENTER_Y = 370
 MAX_CURVE_ERROR = 1.0
 
 
@@ -24,6 +24,7 @@ class Icon:
     name: str
     codepoint: int
     svg_path: Path
+    optical_size: int
 
     @property
     def glyph_name(self) -> str:
@@ -31,11 +32,11 @@ class Icon:
 
 
 ICONS = (
-    Icon("Claude", 0xF2000, ROOT / "svg" / "claude.svg"),
-    Icon("Codex", 0xF2001, ROOT / "svg" / "codex.svg"),
-    Icon("Gemini", 0xF2002, ROOT / "svg" / "gemini.svg"),
-    Icon("OpenCode", 0xF2003, ROOT / "svg" / "opencode.svg"),
-    Icon("Pi", 0xF2004, ROOT / "svg" / "pi.svg"),
+    Icon("Claude", 0xF2000, ROOT / "svg" / "claude.svg", 880),
+    Icon("Codex", 0xF2001, ROOT / "svg" / "codex.svg", 820),
+    Icon("Gemini", 0xF2002, ROOT / "svg" / "gemini.svg", 860),
+    Icon("OpenCode", 0xF2003, ROOT / "svg" / "opencode.svg", 840),
+    Icon("Pi", 0xF2004, ROOT / "svg" / "pi.svg", 840),
 )
 
 FONT_PATHS = (
@@ -44,44 +45,44 @@ FONT_PATHS = (
 )
 
 
-def svg_to_glyph(svg_path: Path):
-    root = ET.parse(svg_path).getroot()
-    view_box = root.get("viewBox")
-    if not view_box:
-        raise ValueError(f"{svg_path} has no viewBox")
+def svg_to_glyph(icon: Icon):
+    root = ET.parse(icon.svg_path).getroot()
+    path_data = [
+        element.get("d")
+        for element in root.iter()
+        if element.tag.rsplit("}", 1)[-1] == "path" and element.get("d")
+    ]
+    if not path_data:
+        raise ValueError(f"{icon.svg_path} has no drawable paths")
 
-    min_x, min_y, width, height = (float(value) for value in view_box.split())
-    if width <= 0 or height <= 0:
-        raise ValueError(f"{svg_path} has an invalid viewBox")
+    bounds_pen = BoundsPen(None)
+    for path in path_data:
+        parse_path(path, bounds_pen)
+    if bounds_pen.bounds is None:
+        raise ValueError(f"{icon.svg_path} has no drawable bounds")
 
-    scale = ICON_BOX / max(width, height)
+    min_x, min_y, max_x, max_y = bounds_pen.bounds
+    width = max_x - min_x
+    height = max_y - min_y
+    scale = icon.optical_size / max(width, height)
     scaled_width = width * scale
     scaled_height = height * scale
     x_left = (ADVANCE_WIDTH - scaled_width) / 2
-    y_bottom = ICON_BOTTOM + (ICON_BOX - scaled_height) / 2
+    y_bottom = ICON_CENTER_Y - scaled_height / 2
     transform = (
         scale,
         0,
         0,
         -scale,
         x_left - min_x * scale,
-        y_bottom + (min_y + height) * scale,
+        y_bottom + max_y * scale,
     )
 
     glyph_pen = TTGlyphPen(None)
     curve_pen = Cu2QuPen(glyph_pen, MAX_CURVE_ERROR)
     pen = TransformPen(curve_pen, transform)
-    path_count = 0
-    for element in root.iter():
-        if element.tag.rsplit("}", 1)[-1] != "path":
-            continue
-        path_data = element.get("d")
-        if path_data:
-            parse_path(path_data, pen)
-            path_count += 1
-
-    if not path_count:
-        raise ValueError(f"{svg_path} has no drawable paths")
+    for path in path_data:
+        parse_path(path, pen)
     return glyph_pen.glyph()
 
 
@@ -114,7 +115,7 @@ def add_icons(font_path: Path) -> None:
                     f"U+{icon.codepoint:05X} is already mapped to {current_name}"
                 )
 
-        glyph = svg_to_glyph(icon.svg_path)
+        glyph = svg_to_glyph(icon)
         if icon.glyph_name not in glyph_order:
             glyph_order.append(icon.glyph_name)
         glyphs[icon.glyph_name] = glyph
