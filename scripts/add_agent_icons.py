@@ -25,6 +25,7 @@ class Icon:
     codepoint: int
     svg_path: Path
     optical_size: int
+    optical_height: int | None = None
 
     @property
     def glyph_name(self) -> str:
@@ -37,6 +38,8 @@ ICONS = (
     Icon("Gemini", 0xF2002, ROOT / "svg" / "gemini.svg", 860),
     Icon("OpenCode", 0xF2003, ROOT / "svg" / "opencode.svg", 840),
     Icon("Pi", 0xF2004, ROOT / "svg" / "pi.svg", 840),
+    Icon("DeepSeek", 0xF2005, ROOT / "svg" / "deepseek.svg", 960, 780),
+    Icon("Kimi", 0xF2006, ROOT / "svg" / "kimi.svg", 840),
 )
 
 
@@ -66,18 +69,22 @@ def _icon_transform(
     min_x, min_y, max_x, max_y = bounds_pen.bounds
     width = max_x - min_x
     height = max_y - min_y
-    scale = icon.optical_size / max(width, height)
-    scaled_width = width * scale
-    scaled_height = height * scale
+    if icon.optical_height is None:
+        scale_x = scale_y = icon.optical_size / max(width, height)
+    else:
+        scale_x = icon.optical_size / width
+        scale_y = icon.optical_height / height
+    scaled_width = width * scale_x
+    scaled_height = height * scale_y
     x_left = (ADVANCE_WIDTH - scaled_width) / 2
     y_bottom = ICON_CENTER_Y - scaled_height / 2
     return (
-        scale,
+        scale_x,
         0,
         0,
-        -scale,
-        x_left - min_x * scale,
-        y_bottom + max_y * scale,
+        -scale_y,
+        x_left - min_x * scale_x,
+        y_bottom + max_y * scale_y,
     )
 
 

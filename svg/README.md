@@ -12,6 +12,8 @@ remain untouched.
 | Gemini | `U+F2002` | `\U000F2002` | `agent.gemini` |
 | OpenCode | `U+F2003` | `\U000F2003` | `agent.opencode` |
 | Pi | `U+F2004` | `\U000F2004` | `agent.pi` |
+| DeepSeek | `U+F2005` | `\U000F2005` | `agent.deepseek` |
+| Kimi | `U+F2006` | `\U000F2006` | `agent.kimi` |
 
 These code points are in Unicode's Plane 15 Private Use Area and are outside
 the ranges occupied by the Nerd Fonts 3.5.0 glyph set bundled by this branch.
